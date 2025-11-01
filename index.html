@@ -262,7 +262,23 @@
                   <td>1</td>
                   <td><input type="text" class="item-description" placeholder="شرح آیتم"></td>
                   <td><input type="number" class="item-quantity" min="0" step="0.01" value="0"></td>
-                  <td><input type="text" class="item-unit" placeholder="عدد/کیلو/متر/ساعت"></td>
+                  <td>
+                    <select class="item-unit">
+                      <option value="عدد">عدد</option>
+                      <option value="کیلوگرم">کیلوگرم</option>
+                      <option value="گرم">گرم</option>
+                      <option value="متر">متر</option>
+                      <option value="سانتی‌متر">سانتی‌متر</option>
+                      <option value="لیتر">لیتر</option>
+                      <option value="بسته">بسته</option>
+                      <option value="کارتن">کارتن</option>
+                      <option value="جعبه">جعبه</option>
+                      <option value="ساعت">ساعت</option>
+                      <option value="روز">روز</option>
+                      <option value="ماه">ماه</option>
+                      <option value="سال">سال</option>
+                    </select>
+                  </td>
                   <td><input type="number" class="item-price" min="0" step="0.01" value="0"></td>
                   <td style="display:flex;gap:4px;align-items:center;">
                     <input type="number" class="item-discount" min="0" step="0.01" value="0" aria-label="مقدار تخفیف">
@@ -544,32 +560,79 @@
     setInterval(() => { saveToStorage(true); }, 5000);
 
     // ---------- Functions ----------
-    function buildItemRow(rowIndex=0){
+    function getUnitOptions() {
+      // Load saved units from localStorage
+      const savedUnits = JSON.parse(localStorage.getItem('invoiceUnits')) || [];
+      const defaultUnits = ['عدد', 'کیلوگرم', 'گرم', 'متر', 'سانتی‌متر', 'لیتر', 'بسته', 'کارتن', 'جعبه', 'ساعت', 'روز', 'ماه', 'سال'];
+      
+      // Combine default and saved units, remove duplicates
+      const allUnits = [...new Set([...defaultUnits, ...savedUnits])];
+      return allUnits;
+    }
+
+    function saveUnitToStorage(unit) {
+      if (!unit || unit.trim() === '') return;
+      
+      const savedUnits = JSON.parse(localStorage.getItem('invoiceUnits')) || [];
+      if (!savedUnits.includes(unit)) {
+        savedUnits.push(unit);
+        localStorage.setItem('invoiceUnits', JSON.stringify(savedUnits));
+      }
+    }
+
+    function buildUnitSelect(selectedValue = 'عدد') {
+      const select = document.createElement('select');
+      select.className = 'item-unit';
+      
+      const options = getUnitOptions();
+      options.forEach(unit => {
+        const option = document.createElement('option');
+        option.value = unit;
+        option.textContent = unit;
+        if (unit === selectedValue) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+      
+      select.addEventListener('change', function() {
+        saveUnitToStorage(this.value);
+        updatePreview();
+        saveToStorage(true);
+      });
+      
+      return select;
+    }
+
+    function buildItemRow(rowIndex=0, itemData = {}){
       const tr = document.createElement('tr'); tr.setAttribute('draggable','true');
 
       const tdIndex = document.createElement('td'); tdIndex.textContent = rowIndex + 1; tr.appendChild(tdIndex);
 
       const tdDesc = document.createElement('td');
       const inpDesc = document.createElement('input'); inpDesc.type='text'; inpDesc.className='item-description'; inpDesc.placeholder='شرح آیتم';
+      if (itemData.description) inpDesc.value = itemData.description;
       tdDesc.appendChild(inpDesc); tr.appendChild(tdDesc);
 
       const tdQty = document.createElement('td');
-      const inpQty = document.createElement('input'); inpQty.type='number'; inpQty.className='item-quantity'; inpQty.min='0'; inpQty.step='0.01'; inpQty.value='0';
+      const inpQty = document.createElement('input'); inpQty.type='number'; inpQty.className='item-quantity'; inpQty.min='0'; inpQty.step='0.01'; inpQty.value=itemData.quantity || '0';
       tdQty.appendChild(inpQty); tr.appendChild(tdQty);
 
       const tdUnit = document.createElement('td');
-      const inpUnit = document.createElement('input'); inpUnit.type='text'; inpUnit.className='item-unit'; inpUnit.placeholder='عدد/کیلو/متر/ساعت';
-      tdUnit.appendChild(inpUnit); tr.appendChild(tdUnit);
+      const unitSelect = buildUnitSelect(itemData.unit || 'عدد');
+      tdUnit.appendChild(unitSelect); tr.appendChild(tdUnit);
 
       const tdPrice = document.createElement('td');
-      const inpPrice = document.createElement('input'); inpPrice.type='number'; inpPrice.className='item-price'; inpPrice.min='0'; inpPrice.step='0.01'; inpPrice.value='0';
+      const inpPrice = document.createElement('input'); inpPrice.type='number'; inpPrice.className='item-price'; inpPrice.min='0'; inpPrice.step='0.01'; inpPrice.value=itemData.price || '0';
       tdPrice.appendChild(inpPrice); tr.appendChild(tdPrice);
 
       const tdDiscount = document.createElement('td'); tdDiscount.style.display='flex'; tdDiscount.style.gap='4px'; tdDiscount.style.alignItems='center';
-      const inpDiscount = document.createElement('input'); inpDiscount.type='number'; inpDiscount.className='item-discount'; inpDiscount.min='0'; inpDiscount.step='0.01'; inpDiscount.value='0';
+      const inpDiscount = document.createElement('input'); inpDiscount.type='number'; inpDiscount.className='item-discount'; inpDiscount.min='0'; inpDiscount.step='0.01'; inpDiscount.value=itemData.discount || '0';
       const selType = document.createElement('select'); selType.className='item-discount-type';
       const optAmount = document.createElement('option'); optAmount.value='amount'; optAmount.textContent='مبلغ';
       const optPercent = document.createElement('option'); optPercent.value='percent'; optPercent.textContent='٪';
+      if (itemData.discountType === 'percent') optPercent.selected = true;
+      else optAmount.selected = true;
       selType.append(optAmount, optPercent);
       tdDiscount.append(inpDiscount, selType);
       tr.appendChild(tdDiscount);
@@ -768,6 +831,9 @@
           discountType: row.querySelector('.item-discount-type').value,
           price: row.querySelector('.item-price').value
         });
+        
+        // Save the unit to localStorage for future use
+        saveUnitToStorage(row.querySelector('.item-unit').value);
       });
       localStorage.setItem('invoiceDraft', JSON.stringify(invoiceData));
       if (!isAutoSave) { notification.textContent='تغییرات ذخیره شد'; notification.classList.add('show'); setTimeout(()=>notification.classList.remove('show'),2000); }
@@ -799,10 +865,9 @@
         itemsContainer.innerHTML = '';
         if (d.items && d.items.length) {
           d.items.forEach((item, idx) => {
-            const tr = buildItemRow(idx); itemsContainer.appendChild(tr);
+            const tr = buildItemRow(idx, item); itemsContainer.appendChild(tr);
             tr.querySelector('.item-description').value = item.description || '';
             tr.querySelector('.item-quantity').value = item.quantity || 0;
-            tr.querySelector('.item-unit').value = item.unit || '';
             tr.querySelector('.item-discount').value = item.discount || 0;
             tr.querySelector('.item-discount-type').value = item.discountType || 'amount';
             tr.querySelector('.item-price').value = item.price || 0;
@@ -913,6 +978,9 @@
           discountType: row.querySelector('.item-discount-type').value,
           price: row.querySelector('.item-price').value
         });
+        
+        // Save the unit to localStorage for future use
+        saveUnitToStorage(row.querySelector('.item-unit').value);
       });
 
       const savedInvoices = JSON.parse(localStorage.getItem('savedInvoices') || '[]');
@@ -979,10 +1047,9 @@
       itemsContainer.innerHTML = '';
       if (inv.items && inv.items.length) {
         inv.items.forEach((item, idx) => {
-          const tr = buildItemRow(idx); itemsContainer.appendChild(tr);
+          const tr = buildItemRow(idx, item); itemsContainer.appendChild(tr);
           tr.querySelector('.item-description').value = item.description || '';
           tr.querySelector('.item-quantity').value = item.quantity || 0;
-          tr.querySelector('.item-unit').value = item.unit || '';
           tr.querySelector('.item-discount').value = item.discount || 0;
           tr.querySelector('.item-discount-type').value = item.discountType || 'amount';
           tr.querySelector('.item-price').value = item.price || 0;
