@@ -528,12 +528,11 @@
     // Close modal when clicking outside
     window.addEventListener('click', (e) => { if (e.target === previewModal) closePreviewModal(); });
 
-    // Normalize Persian digits in numeric inputs
+    // Normalize Persian digits in numeric inputs - FIXED: removed setSelectionRange for number inputs
     document.addEventListener('input', (e) => {
       if (e.target.matches('.item-quantity, .item-price, .item-discount')) {
-        const caret = e.target.selectionStart;
         e.target.value = toEN(e.target.value);
-        e.target.setSelectionRange(caret, caret);
+        // Don't use setSelectionRange for number inputs as it's not supported
       }
     }, true);
 
@@ -876,7 +875,17 @@
         } else { addNewItem(); }
 
         updatePreview(); updateCurrencyDisplay();
-      } else { addNewItem(); updateCurrencyDisplay(); }
+      } else { 
+        addNewItem(); 
+        updateCurrencyDisplay(); 
+        // Update the initial row total immediately
+        setTimeout(() => {
+          const firstRow = itemsContainer.querySelector('tr');
+          if (firstRow) {
+            updateItemTotal.call(firstRow.querySelector('.item-quantity'));
+          }
+        }, 100);
+      }
     }
 
     function clearAll(){
